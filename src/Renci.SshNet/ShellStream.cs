@@ -695,6 +695,9 @@ namespace Renci.SshNet
         /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
         protected override void Dispose(bool disposing)
         {
+            Console.WriteLine("[{0}] Disposing ShellStream.",
+                              Thread.CurrentThread.ManagedThreadId);
+
             base.Dispose(disposing);
 
             if (_isDisposed)
@@ -706,9 +709,16 @@ namespace Renci.SshNet
 
                 if (_channel != null)
                 {
+                    Console.WriteLine("[{0}] Disposing channel from ShellStream.Dispose(bool).",
+                                      Thread.CurrentThread.ManagedThreadId);
+
                     _channel.DataReceived -= Channel_DataReceived;
                     _channel.Closed -= Channel_Closed;
                     _channel.Dispose();
+
+                    Console.WriteLine("[{0}] Disposed channel from ShellStream.Dispose(bool).",
+                                      Thread.CurrentThread.ManagedThreadId);
+
                     _channel = null;
                 }
 
@@ -750,11 +760,19 @@ namespace Renci.SshNet
         private void Session_Disconnected(object sender, EventArgs e)
         {
             if (_channel != null)
+            {
+                Console.WriteLine("[{0}] Disposing channel from Session_Disconnected(...).",
+                                  Thread.CurrentThread.ManagedThreadId);
+
                 _channel.Dispose();
+            }
         }
 
         private void Channel_Closed(object sender, ChannelEventArgs e)
         {
+            Console.WriteLine("[{0}] Disposing ShellStream from Channel_Closed(...).",
+                              Thread.CurrentThread.ManagedThreadId);
+
             //  TODO:   Do we need to call dispose here ??
             Dispose();
         }

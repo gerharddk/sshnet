@@ -398,6 +398,11 @@ namespace Renci.SshNet.Channels
         /// </summary>
         protected virtual void OnClose()
         {
+            Console.WriteLine("[{0}] SSH_MSG_CHANNEL_CLOSE received from server {1}/{2}.",
+                              Thread.CurrentThread.ManagedThreadId,
+                              LocalChannelNumber,
+                              RemoteChannelNumber);
+
             _closeMessageReceived = true;
 
             // Signal that SSH_MSG_CHANNEL_CLOSE message was received from server.
@@ -406,6 +411,11 @@ namespace Renci.SshNet.Channels
             var channelClosedWaitHandle = _channelClosedWaitHandle;
             if (channelClosedWaitHandle != null)
                 channelClosedWaitHandle.Set();
+
+            Console.WriteLine("[{0}] Closing channel after receiving SSH_MSG_CHANNEL_CLOSE from server {1}/{2}.",
+                              Thread.CurrentThread.ManagedThreadId,
+                              LocalChannelNumber,
+                              RemoteChannelNumber);
 
             // close the channel
             Close();
@@ -522,6 +532,11 @@ namespace Renci.SshNet.Channels
             // same time we would otherwise risk sending the SSH_MSG_CHANNEL_EOF after the SSH_MSG_CHANNEL_CLOSE
             // message causing the server to disconnect the session.
 
+            Console.WriteLine("[{0}] In Close() {1}/{2}.",
+                              Thread.CurrentThread.ManagedThreadId,
+                              LocalChannelNumber,
+                              RemoteChannelNumber);
+
             lock (this)
             {
                 // send EOF message first the following conditions are met:
@@ -532,8 +547,10 @@ namespace Renci.SshNet.Channels
                 // * the session is connected
                 if (!_eofMessageSent && !_closeMessageReceived && !_eofMessageReceived && IsOpen && IsConnected)
                 {
+                    Console.WriteLine("[{0}] Sending SSH_MSG_CHANNEL_EOF for channel {1}/{2}.", Thread.CurrentThread.ManagedThreadId, LocalChannelNumber, RemoteChannelNumber);
                     if (TrySendMessage(new ChannelEofMessage(RemoteChannelNumber)))
                     {
+                        Console.WriteLine("[{0}] Sent SSH_MSG_CHANNEL_EOF for channel {1}/{2}.", Thread.CurrentThread.ManagedThreadId, LocalChannelNumber, RemoteChannelNumber);
                         _eofMessageSent = true;
                     }
                 }
@@ -542,20 +559,37 @@ namespace Renci.SshNet.Channels
                 // and the channel is open and the session is connected
                 if (!_closeMessageSent && IsOpen && IsConnected)
                 {
+                    Console.WriteLine("[{0}] Sending SSH_MSG_CHANNEL_CLOSE for channel {1}/{2}.", Thread.CurrentThread.ManagedThreadId, LocalChannelNumber, RemoteChannelNumber);
                     if (TrySendMessage(new ChannelCloseMessage(RemoteChannelNumber)))
                     {
+                        Console.WriteLine("[{0}] Sent SSH_MSG_CHANNEL_CLOSE for channel {1}/{2}.", Thread.CurrentThread.ManagedThreadId, LocalChannelNumber, RemoteChannelNumber);
                         _closeMessageSent = true;
 
                         // only wait for the channel to be closed by the server if we didn't send a
                         // SSH_MSG_CHANNEL_CLOSE as response to a SSH_MSG_CHANNEL_CLOSE sent by the
                         // server
+                        Console.WriteLine("[{0}] Waiting for server to close channel {1}/{2}.", Thread.CurrentThread.ManagedThreadId, LocalChannelNumber, RemoteChannelNumber);
                         try
                         {
                             WaitOnHandle(_channelClosedWaitHandle);
+                            Console.WriteLine("[{0}] Finished waiting for server to close channel {1}/{2}.", Thread.CurrentThread.ManagedThreadId, LocalChannelNumber, RemoteChannelNumber);
                         }
-                        catch (SshConnectionException)
+                        catch (SshConnectionException ex)
                         {
+                            Console.WriteLine("[{0}] SSH connection exception waiting for server to close channel {1}/{2}: {3}.",
+                                              Thread.CurrentThread.ManagedThreadId,
+                                              LocalChannelNumber,
+                                              RemoteChannelNumber,
+                                              ex.ToString());
                             // ignore connection failures as we're closing the channel anyway
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine("[{0}] Exception waiting for server to close channel {1}/{2}: {3}.",
+                                              Thread.CurrentThread.ManagedThreadId,
+                                              LocalChannelNumber,
+                                              RemoteChannelNumber,
+                                              ex.ToString());
                         }
                     }
                 }
